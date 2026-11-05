@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "Record": {
+      "title": "Record",
+      "description": "A business or customer record managed by the authenticated user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Unique identifier of the record"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the record owner"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Full name or title of the record"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Contact email address"
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Contact phone number"
+        },
+        "company": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Company or organization name"
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Category or department"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Active", "Pending", "Completed", "Archived"],
+          "description": "Current status of the record"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"],
+          "description": "Priority level"
+        },
+        "value": {
+          "type": "number",
+          "description": "Monetary value, budget, or contract amount"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Additional notes or description"
+        },
+        "tags": {
+          "type": "array",
+          "description": "List of tags associated with the record"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["userId", "name", "email", "category", "status", "priority"]
+    }
+  },
+  "firestore": {
+    "/records/{recordId}": {
+      "schema": "Record",
+      "description": "Collection of records owned and managed by authenticated users"
+    }
+  }
+}

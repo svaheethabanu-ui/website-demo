@@ -1,0 +1,6 @@
+{
+  "name": "Apex CRUD Cloud Manager",
+  "description": "Production-ready CRUD web application with Firebase Firestore real-time database, Google authentication, interactive metrics dashboard, and Netlify deployment readiness.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
