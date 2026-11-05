@@ -7,8 +7,10 @@ import {
   FolderKanban,
   PlusCircle,
   Sparkles,
+  GraduationCap,
 } from 'lucide-react';
 import { RecordItem } from '../types/record';
+import { useAuth } from '../context/AuthContext';
 
 interface DashboardStatsProps {
   records: RecordItem[];
@@ -23,6 +25,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   onSeedDemoData,
   isSeeding,
 }) => {
+  const { isAdmin, isStudent } = useAuth();
+
   const totalCount = records.length;
   const activeCount = records.filter((r) => r.status === 'Active').length;
   const pendingCount = records.filter((r) => r.status === 'Pending').length;
@@ -57,15 +61,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-            Records Operations Dashboard
+            {isStudent ? 'Student Records Directory' : 'Records Operations Dashboard'}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Real-time CRUD management, cloud database indexing, and query analytics.
+            {isStudent
+              ? 'Browse, search, and view authorized records published in the Supabase database.'
+              : 'Real-time Supabase PostgreSQL CRUD management, indexing, and analytics.'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {records.length > 0 && (
+          {isAdmin && records.length > 0 && (
             <button
               onClick={onSeedDemoData}
               disabled={isSeeding}
@@ -76,13 +82,20 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             </button>
           )}
 
-          <button
-            onClick={onOpenAddModal}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:opacity-95 hover:shadow-indigo-500/35 active:scale-95"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Add New Record</span>
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={onOpenAddModal}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:opacity-95 hover:shadow-indigo-500/35 active:scale-95 cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Add New Record</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-3.5 py-2 text-xs font-semibold text-emerald-300">
+              <GraduationCap className="h-4 w-4 text-emerald-400" />
+              <span>Student Access (View Only)</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -100,13 +113,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-4 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-white tracking-tight">{totalCount}</span>
-            <span className="text-xs text-slate-400">managed items</span>
+            <span className="text-xs text-slate-400">database entries</span>
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
             <span className="inline-flex items-center text-emerald-400 font-medium">
               Synchronized
             </span>
-            <span>• in Firebase Firestore</span>
+            <span>• in Supabase PostgreSQL</span>
           </div>
         </div>
 
@@ -167,10 +180,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <span className="text-3xl font-extrabold text-white tracking-tight">
               {criticalAndHighCount}
             </span>
-            <span className="text-xs text-rose-400/90 font-medium">high priority</span>
+            <span className="text-xs text-rose-400/90 font-medium">priority records</span>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
-            <span>Requires urgent review</span>
+            <span>Published by Administrator</span>
           </div>
         </div>
       </div>

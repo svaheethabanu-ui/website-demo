@@ -13,8 +13,10 @@ import {
   Copy,
   Check,
   ExternalLink,
+  GraduationCap,
 } from 'lucide-react';
 import { RecordItem, STATUS_COLORS, PRIORITY_COLORS } from '../types/record';
+import { useAuth } from '../context/AuthContext';
 
 interface RecordDetailModalProps {
   record: RecordItem | null;
@@ -31,6 +33,7 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const { isAdmin, isStudent } = useAuth();
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !record) return null;
@@ -216,16 +219,23 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-slate-800 px-6 py-4 bg-slate-950/30">
-          <button
-            onClick={() => {
-              onClose();
-              onDelete(record);
-            }}
-            className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-950/30 px-3.5 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 hover:text-rose-200 transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>Delete</span>
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={() => {
+                onClose();
+                onDelete(record);
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-950/30 px-3.5 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 hover:text-rose-200 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Delete</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <GraduationCap className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Student Read-Only Mode</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <button
@@ -234,16 +244,18 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({
             >
               Close
             </button>
-            <button
-              onClick={() => {
-                onClose();
-                onEdit(record);
-              }}
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-md shadow-indigo-600/30"
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-              <span>Edit Record</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onEdit(record);
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-md shadow-indigo-600/30"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                <span>Edit Record</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 export type RecordStatus = 'Active' | 'Pending' | 'Completed' | 'Archived';
 export type RecordPriority = 'Low' | 'Medium' | 'High' | 'Critical';
+export type UserRole = 'admin' | 'student';
 
 export interface RecordItem {
   id: string;

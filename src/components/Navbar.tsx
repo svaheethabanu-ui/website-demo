@@ -4,14 +4,17 @@ import {
   Cloud,
   LogOut,
   Sparkles,
-  Server,
   User as UserIcon,
   HelpCircle,
+  ShieldCheck,
+  GraduationCap,
+  FileCode,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   onOpenNetlifyGuide: () => void;
+  onOpenSqlGuide: () => void;
   onSeedDemoData: () => void;
   isSeeding: boolean;
   recordCount: number;
@@ -19,11 +22,12 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenNetlifyGuide,
+  onOpenSqlGuide,
   onSeedDemoData,
   isSeeding,
   recordCount,
 }) => {
-  const { user, logout, firestoreConnected } = useAuth();
+  const { user, logout, isSupabaseLive, isAdmin } = useAuth();
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
@@ -37,33 +41,43 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold tracking-tight text-white">Apex<span className="text-indigo-400">CRUD</span></span>
-              <span className="rounded-md bg-indigo-500/10 px-2 py-0.5 text-[11px] font-semibold text-indigo-400 ring-1 ring-indigo-500/30">
-                Cloud SQL / Firebase
+              <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400 ring-1 ring-emerald-500/30">
+                Supabase PostgreSQL
               </span>
             </div>
             <p className="hidden text-xs text-slate-400 sm:block">
-              Real-time Database & Record Management
+              Real-time Database & Role-Based Record Management
             </p>
           </div>
         </div>
 
         {/* Status badges & actions */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Firestore status */}
+          {/* Supabase status badge */}
           <div
             className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium md:flex ${
-              firestoreConnected
+              isSupabaseLive
                 ? 'bg-emerald-950/50 text-emerald-400 ring-1 ring-emerald-500/30'
-                : 'bg-amber-950/50 text-amber-400 ring-1 ring-amber-500/30'
+                : 'bg-indigo-950/50 text-indigo-300 ring-1 ring-indigo-500/30'
             }`}
-            title="Real-time Firestore sync active"
+            title="Supabase Client Status"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            <span>Firestore Live</span>
+            <span>{isSupabaseLive ? 'Supabase Live' : 'Supabase Client'}</span>
           </div>
+
+          {/* SQL Schema button */}
+          <button
+            onClick={onOpenSqlGuide}
+            className="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-950/30 px-3 py-1.5 text-xs font-medium text-indigo-300 transition-colors hover:bg-indigo-900/40 hover:text-indigo-200"
+            title="View Supabase PostgreSQL Schema & RLS Policies"
+          >
+            <FileCode className="h-3.5 w-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">SQL Schema</span>
+          </button>
 
           {/* Netlify Ready Button */}
           <button
@@ -76,15 +90,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <HelpCircle className="h-3 w-3 opacity-70" />
           </button>
 
-          {/* Seed demo records if empty */}
-          {recordCount === 0 && (
+          {/* Seed demo records if empty (only for admin) */}
+          {isAdmin && recordCount === 0 && (
             <button
               onClick={onSeedDemoData}
               disabled={isSeeding}
               className="flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-950/40 px-3 py-1.5 text-xs font-medium text-purple-200 transition-colors hover:bg-purple-900/50"
             >
               <Sparkles className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
-              <span>{isSeeding ? 'Seeding...' : 'Add Demo Records'}</span>
+              <span>{isSeeding ? 'Seeding...' : 'Add Sample Records'}</span>
             </button>
           )}
 
@@ -92,26 +106,31 @@ export const Navbar: React.FC<NavbarProps> = ({
           {user && (
             <div className="flex items-center gap-2 border-l border-slate-800 pl-2 sm:pl-3">
               <div className="flex items-center gap-2">
-                {user.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt={user.displayName || 'User'}
-                    className="h-8 w-8 rounded-full ring-2 ring-indigo-500/40"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600/30 text-xs font-semibold text-indigo-300 ring-1 ring-indigo-500/50">
-                    {user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon className="h-4 w-4" />}
-                  </div>
-                )}
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ring-1 ${
+                    user.role === 'admin'
+                      ? 'bg-indigo-600/30 text-indigo-300 ring-indigo-500/50'
+                      : 'bg-emerald-600/30 text-emerald-300 ring-emerald-500/50'
+                  }`}
+                >
+                  {user.role === 'admin' ? (
+                    <ShieldCheck className="h-4 w-4 text-indigo-400" />
+                  ) : (
+                    <GraduationCap className="h-4 w-4 text-emerald-400" />
+                  )}
+                </div>
                 <div className="hidden text-left text-xs lg:block">
                   <div className="flex items-center gap-1.5 font-medium text-slate-200">
                     <span>{user.displayName}</span>
-                    {user.isDemo && (
-                      <span className="rounded bg-amber-500/20 px-1 py-0.2 text-[10px] font-semibold text-amber-300">
-                        Demo
-                      </span>
-                    )}
+                    <span
+                      className={`rounded px-1.5 py-0.2 text-[10px] font-bold ${
+                        user.role === 'admin'
+                          ? 'bg-indigo-500/20 text-indigo-300'
+                          : 'bg-emerald-500/20 text-emerald-300'
+                      }`}
+                    >
+                      {user.role === 'admin' ? 'Admin' : 'Student (View Only)'}
+                    </span>
                   </div>
                   <div className="max-w-[140px] truncate text-slate-400">
                     {user.email}

@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   Search,
-  Filter,
   ArrowUpDown,
   Download,
   Trash2,
@@ -19,13 +18,12 @@ import {
 } from 'lucide-react';
 import {
   RecordItem,
-  RecordStatus,
-  RecordPriority,
   FilterState,
   CATEGORIES,
   STATUS_COLORS,
   PRIORITY_COLORS,
 } from '../types/record';
+import { useAuth } from '../context/AuthContext';
 
 interface RecordTableProps {
   records: RecordItem[];
@@ -46,6 +44,8 @@ export const RecordTable: React.FC<RecordTableProps> = ({
   onBatchDelete,
   onOpenAddModal,
 }) => {
+  const { isAdmin, isStudent } = useAuth();
+
   const [filter, setFilter] = useState<FilterState>({
     search: '',
     status: 'all',
@@ -130,6 +130,7 @@ export const RecordTable: React.FC<RecordTableProps> = ({
 
   // Selection handlers
   const handleToggleSelectAll = () => {
+    if (!isAdmin) return;
     if (selectedIds.length === paginatedRecords.length && paginatedRecords.length > 0) {
       setSelectedIds([]);
     } else {
@@ -138,12 +139,14 @@ export const RecordTable: React.FC<RecordTableProps> = ({
   };
 
   const handleToggleSelectRow = (id: string) => {
+    if (!isAdmin) return;
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
   const handleTriggerBatchDelete = () => {
+    if (!isAdmin) return;
     const selectedRecords = records.filter((r) => selectedIds.includes(r.id));
     if (selectedRecords.length > 0) {
       onBatchDelete(selectedRecords);
@@ -228,6 +231,7 @@ export const RecordTable: React.FC<RecordTableProps> = ({
   };
 
   const isAllCurrentSelected =
+    isAdmin &&
     paginatedRecords.length > 0 &&
     paginatedRecords.every((r) => selectedIds.includes(r.id));
 
@@ -364,8 +368,8 @@ export const RecordTable: React.FC<RecordTableProps> = ({
           </div>
         </div>
 
-        {/* Selected Batch Action Banner */}
-        {selectedIds.length > 0 && (
+        {/* Selected Batch Action Banner (Admin only) */}
+        {isAdmin && selectedIds.length > 0 && (
           <div className="mt-3 flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-950/20 px-3.5 py-2 text-xs">
             <span className="font-medium text-rose-300">
               {selectedIds.length} record{selectedIds.length > 1 ? 's' : ''} selected
@@ -395,19 +399,21 @@ export const RecordTable: React.FC<RecordTableProps> = ({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-800 bg-slate-950/70 text-slate-400 uppercase tracking-wider text-[11px] font-semibold select-none">
-                <th className="py-3.5 pl-4 pr-2 w-10">
-                  <button
-                    onClick={handleToggleSelectAll}
-                    className="text-slate-400 hover:text-white flex items-center"
-                    title="Select all on current page"
-                  >
-                    {isAllCurrentSelected ? (
-                      <CheckSquare className="h-4 w-4 text-indigo-400" />
-                    ) : (
-                      <Square className="h-4 w-4" />
-                    )}
-                  </button>
-                </th>
+                {isAdmin && (
+                  <th className="py-3.5 pl-4 pr-2 w-10">
+                    <button
+                      onClick={handleToggleSelectAll}
+                      className="text-slate-400 hover:text-white flex items-center"
+                      title="Select all on current page"
+                    >
+                      {isAllCurrentSelected ? (
+                        <CheckSquare className="h-4 w-4 text-indigo-400" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
+                    </button>
+                  </th>
+                )}
 
                 <th className="py-3.5 px-3">
                   <button
@@ -470,16 +476,16 @@ export const RecordTable: React.FC<RecordTableProps> = ({
             <tbody className="divide-y divide-slate-800/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-400">
+                  <td colSpan={isAdmin ? 8 : 7} className="py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RefreshCw className="h-6 w-6 animate-spin text-indigo-400" />
-                      <span className="text-sm">Fetching records from Firestore...</span>
+                      <span className="text-sm">Fetching records from Supabase...</span>
                     </div>
                   </td>
                 </tr>
               ) : paginatedRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-400">
+                  <td colSpan={isAdmin ? 8 : 7} className="py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-3 max-w-sm mx-auto">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-800/60 text-slate-500">
                         <FolderOpen className="h-6 w-6" />
@@ -489,10 +495,12 @@ export const RecordTable: React.FC<RecordTableProps> = ({
                       </div>
                       <p className="text-xs text-slate-500 text-center">
                         {records.length === 0
-                          ? 'Get started by creating your first record using the form or seeding sample data.'
+                          ? isAdmin
+                            ? 'Get started by creating your first record using the form or seeding sample data.'
+                            : 'No records have been published by the administrator yet.'
                           : 'Try modifying your search query or filter tags to see more results.'}
                       </p>
-                      {records.length === 0 && (
+                      {isAdmin && records.length === 0 && (
                         <button
                           onClick={onOpenAddModal}
                           className="mt-2 flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
@@ -519,19 +527,21 @@ export const RecordTable: React.FC<RecordTableProps> = ({
                           : 'hover:bg-slate-850 hover:bg-slate-800/40'
                       }`}
                     >
-                      {/* Checkbox */}
-                      <td className="py-3.5 pl-4 pr-2">
-                        <button
-                          onClick={() => handleToggleSelectRow(record.id)}
-                          className="text-slate-500 hover:text-white flex items-center"
-                        >
-                          {isSelected ? (
-                            <CheckSquare className="h-4 w-4 text-indigo-400" />
-                          ) : (
-                            <Square className="h-4 w-4" />
-                          )}
-                        </button>
-                      </td>
+                      {/* Checkbox (Admin only) */}
+                      {isAdmin && (
+                        <td className="py-3.5 pl-4 pr-2">
+                          <button
+                            onClick={() => handleToggleSelectRow(record.id)}
+                            className="text-slate-500 hover:text-white flex items-center"
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="h-4 w-4 text-indigo-400" />
+                            ) : (
+                              <Square className="h-4 w-4" />
+                            )}
+                          </button>
+                        </td>
+                      )}
 
                       {/* Name, Company, Email */}
                       <td className="py-3.5 px-3">
@@ -592,7 +602,7 @@ export const RecordTable: React.FC<RecordTableProps> = ({
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {/* View Button */}
+                          {/* View Button (Available to both Admin and Student) */}
                           <button
                             onClick={() => onView(record)}
                             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-indigo-300 transition-colors"
@@ -601,23 +611,27 @@ export const RecordTable: React.FC<RecordTableProps> = ({
                             <Eye className="h-4 w-4" />
                           </button>
 
-                          {/* Edit Button */}
-                          <button
-                            onClick={() => onEdit(record)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-amber-300 transition-colors"
-                            title="Edit Record"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
+                          {/* Edit Button (Admin Only) */}
+                          {isAdmin && (
+                            <button
+                              onClick={() => onEdit(record)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-amber-300 transition-colors"
+                              title="Edit Record"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                          )}
 
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => onDelete(record)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-rose-400 transition-colors"
-                            title="Delete Record"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {/* Delete Button (Admin Only) */}
+                          {isAdmin && (
+                            <button
+                              onClick={() => onDelete(record)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-rose-400 transition-colors"
+                              title="Delete Record"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

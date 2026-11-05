@@ -7,15 +7,15 @@ import { RecordFormModal } from './components/RecordFormModal';
 import { RecordDetailModal } from './components/RecordDetailModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { NetlifyDeployGuideModal } from './components/NetlifyDeployGuideModal';
+import { SupabaseSqlModal } from './components/SupabaseSqlModal';
 import { LoginPage } from './components/LoginPage';
 import {
-  subscribeToRecords,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  batchDeleteRecords,
-  seedSampleRecords,
-} from './services/recordService';
+  subscribeToSupabaseRecords,
+  addSupabaseRecord,
+  updateSupabaseRecord,
+  deleteSupabaseRecord,
+  batchDeleteSupabaseRecords,
+} from './services/supabaseRecordService';
 import { RecordItem, RecordInput } from './types/record';
 import { RefreshCw, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 
@@ -26,7 +26,7 @@ interface Toast {
 }
 
 function MainDashboard() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -38,6 +38,7 @@ function MainDashboard() {
   const [recordToDelete, setRecordToDelete] = useState<RecordItem | null>(null);
   const [recordsToBatchDelete, setRecordsToBatchDelete] = useState<RecordItem[]>([]);
   const [isNetlifyGuideOpen, setIsNetlifyGuideOpen] = useState(false);
+  const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -50,22 +51,20 @@ function MainDashboard() {
     }, 4000);
   }, []);
 
-  // Real-time Firestore subscription
+  // Real-time Supabase subscription
   useEffect(() => {
     if (!user) return;
 
     setIsLoading(true);
-    const unsubscribe = subscribeToRecords(
-      user.uid,
-      user.isDemo,
+    const unsubscribe = subscribeToSupabaseRecords(
       (updatedRecords) => {
         setRecords(updatedRecords);
         setIsLoading(false);
       },
       (error) => {
-        console.error('Real-time subscription error:', error);
+        console.error('Supabase real-time error:', error);
         setIsLoading(false);
-        addToast('error', 'Failed to synchronize records with Firestore.');
+        addToast('error', 'Unable to fetch records from Supabase: ' + (error.message || ''));
       }
     );
 
@@ -76,46 +75,68 @@ function MainDashboard() {
   const handleSaveRecord = async (input: RecordInput) => {
     if (!user) return;
 
-    if (editingRecord) {
-      // Update existing record
-      await updateRecord(editingRecord.id, user.uid, input, editingRecord, user.isDemo);
-      addToast('success', `Record "${input.name}" updated successfully.`);
-      setEditingRecord(null);
-    } else {
-      // Create new record
-      await createRecord(user.uid, input, user.isDemo);
-      addToast('success', `New record "${input.name}" saved to database.`);
-      setIsAddModalOpen(false);
+    if (!isAdmin) {
+      addToast('error', 'Action restricted: Only administrators can add or edit records.');
+      return;
+    }
+
+    try {
+      if (editingRecord) {
+        // Update existing record in Supabase
+        await updateSupabaseRecord(editingRecord.id, input);
+        addToast('success', `Record "${input.name}" updated in Supabase.`);
+        setEditingRecord(null);
+      } else {
+        // Insert new record in Supabase
+        await addSupabaseRecord(input, user.id);
+        addToast('success', `Record "${input.name}" saved to Supabase.`);
+        setIsAddModalOpen(false);
+      }
+    } catch (err: any) {
+      console.error('Save error:', err);
+      addToast('error', err?.message || 'Failed to save record to Supabase.');
     }
   };
 
   // Handle Single Delete
   const handleConfirmDelete = async () => {
     if (!user || !recordToDelete) return;
+
+    if (!isAdmin) {
+      addToast('error', 'Action restricted: Only administrators can delete records.');
+      return;
+    }
+
     try {
-      await deleteRecord(recordToDelete.id, user.uid, user.isDemo);
-      addToast('info', `Record "${recordToDelete.name}" was removed.`);
+      await deleteSupabaseRecord(recordToDelete.id);
+      addToast('info', `Record "${recordToDelete.name}" deleted.`);
       setRecordToDelete(null);
       if (viewingRecord?.id === recordToDelete.id) {
         setViewingRecord(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Delete error:', err);
-      addToast('error', 'Failed to delete record.');
+      addToast('error', err?.message || 'Failed to delete record from Supabase.');
     }
   };
 
   // Handle Batch Delete
   const handleConfirmBatchDelete = async () => {
     if (!user || recordsToBatchDelete.length === 0) return;
+
+    if (!isAdmin) {
+      addToast('error', 'Action restricted: Only administrators can delete records.');
+      return;
+    }
+
     try {
       const ids = recordsToBatchDelete.map((r) => r.id);
-      await batchDeleteRecords(ids, user.uid, user.isDemo);
-      addToast('info', `Successfully removed ${ids.length} records.`);
+      await batchDeleteSupabaseRecords(ids);
+      addToast('info', `Successfully deleted ${ids.length} records.`);
       setRecordsToBatchDelete([]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Batch delete error:', err);
-      addToast('error', 'Failed to complete batch delete.');
+      addToast('error', err?.message || 'Failed to delete records.');
     }
   };
 
@@ -124,11 +145,23 @@ function MainDashboard() {
     if (!user || isSeeding) return;
     setIsSeeding(true);
     try {
-      await seedSampleRecords(user.uid, user.isDemo);
-      addToast('success', 'Sample records added to database!');
-    } catch (err) {
+      const sample = {
+        name: 'Quantum Cybernetics AI',
+        email: 'contracts@quantumai.org',
+        phone: '+1 (555) 432-8765',
+        company: 'Quantum Cybernetics Labs',
+        category: 'Software Project',
+        status: 'Active' as const,
+        priority: 'High' as const,
+        value: 75000,
+        notes: 'Enterprise neural model fine-tuning and PostgreSQL pgvector integration.',
+        tags: ['AI', 'Quantum', 'Postgres'],
+      };
+      await addSupabaseRecord(sample, user.id);
+      addToast('success', 'Sample record created in Supabase database!');
+    } catch (err: any) {
       console.error('Seed error:', err);
-      addToast('error', 'Failed to seed sample records.');
+      addToast('error', err?.message || 'Failed to seed sample record.');
     } finally {
       setIsSeeding(false);
     }
@@ -139,6 +172,7 @@ function MainDashboard() {
       {/* Navbar */}
       <Navbar
         onOpenNetlifyGuide={() => setIsNetlifyGuideOpen(true)}
+        onOpenSqlGuide={() => setIsSqlModalOpen(true)}
         onSeedDemoData={handleSeedData}
         isSeeding={isSeeding}
         recordCount={records.length}
@@ -179,14 +213,22 @@ function MainDashboard() {
       <footer className="border-t border-slate-900 bg-slate-950/70 py-6 px-4 text-center text-xs text-slate-500">
         <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
-            ApexCRUD Studio • Powered by Google AI Studio, Firebase Firestore & Netlify
+            ApexCRUD Studio • Supabase PostgreSQL & Row Level Security (RLS) • Netlify Ready
           </p>
-          <button
-            onClick={() => setIsNetlifyGuideOpen(true)}
-            className="text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer"
-          >
-            Deploy to Netlify Guide →
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSqlModalOpen(true)}
+              className="text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
+            >
+              Supabase SQL Schema →
+            </button>
+            <button
+              onClick={() => setIsNetlifyGuideOpen(true)}
+              className="text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer"
+            >
+              Deploy to Netlify Guide →
+            </button>
+          </div>
         </div>
       </footer>
 
@@ -240,6 +282,12 @@ function MainDashboard() {
         onClose={() => setIsNetlifyGuideOpen(false)}
       />
 
+      {/* Supabase SQL Schema & Credentials Modal */}
+      <SupabaseSqlModal
+        isOpen={isSqlModalOpen}
+        onClose={() => setIsSqlModalOpen(false)}
+      />
+
       {/* Toast Notification Stack */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
         {toasts.map((toast) => (
@@ -280,7 +328,7 @@ function AppContent() {
       <div className="min-h-screen bg-[#090d16] flex flex-col items-center justify-center text-slate-400 gap-3">
         <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
         <span className="text-xs font-medium text-slate-300">
-          Initializing Cloud Authentication & Database...
+          Connecting to Supabase Database & Auth...
         </span>
       </div>
     );
